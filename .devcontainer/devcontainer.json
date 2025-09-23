@@ -21,7 +21,7 @@
 
   "containerEnv": {
     "CODEX_HOME": "/root/.codex",
-    "TORCH_CUDA_ARCH_LIST": "80;86;89;90;100"
+    "TORCH_CUDA_ARCH_LIST": "80;86;89;90;100;120"
   },
 
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",

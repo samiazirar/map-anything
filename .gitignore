@@ -87,3 +87,5 @@ htmlcov/
 
 build
 build/
+
+*.pt

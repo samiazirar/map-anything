@@ -21,9 +21,6 @@ dependencies = [
     "safetensors",
     "tensorboard",
     "tqdm",
-    "torchaudio", ## Temp for AWS
-    "torch~=2.6.0", ## Temp for AWS
-    "torchvision", ## Temp for AWS
     "trimesh",
     "uniception",
 ]
