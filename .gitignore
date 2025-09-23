@@ -89,3 +89,11 @@ build
 build/
 
 *.pt
+/data
+data/
+*.npz
+*.pth
+*.ckpt
+*.hdf5
+*.h5
+*.zip

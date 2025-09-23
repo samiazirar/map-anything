@@ -27,6 +27,8 @@ rm -rf /var/lib/apt/lists/*
 # Disable strict host key checking for GitHub to avoid known_hosts issues
 export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
+python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
 
 # Install MapAnything with all optional extras for a feature-complete developer environment
 python -m pip install .[all]

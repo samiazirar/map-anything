@@ -16,10 +16,17 @@ import numpy as np
 
 from mapanything.utils.image import preprocess_inputs
 import torch
+from uniception.models.encoders.image_normalizations import IMAGE_NORMALIZATION_DICT
 
 def _load_npz(npz_path: Path) -> Dict[str, Any]:
     with np.load(npz_path, allow_pickle=True) as data:
         return {key: data[key] for key in data.files}
+
+
+def load_packed_npz(npz_path: Path) -> Dict[str, Any]:
+    """Public helper to load packed NPZ bundles with pickle enabled."""
+
+    return _load_npz(npz_path)
 
 
 def summarize_packed_npz(npz_path: Path) -> Dict[str, Any]:
@@ -46,6 +53,106 @@ def summarize_packed_npz(npz_path: Path) -> Dict[str, Any]:
         summary["timestamp_range"] = [int(timestamps.min()), int(timestamps.max())]
 
     return summary
+
+
+def _convert_views_without_resize(
+    raw_views: List[Dict[str, Any]], norm_type: str
+) -> List[Dict[str, Any]]:
+    """Convert raw views to torch tensors without resizing or cropping."""
+
+    if norm_type not in IMAGE_NORMALIZATION_DICT:
+        raise ValueError(
+            f"Unknown image normalization type: {norm_type}."
+        )
+
+    img_norm = IMAGE_NORMALIZATION_DICT[norm_type]
+    mean = img_norm.mean.view(1, -1, 1, 1)
+    std = img_norm.std.view(1, -1, 1, 1)
+
+    processed_views: List[Dict[str, Any]] = []
+
+    for view in raw_views:
+        base_view = dict(view)
+        img = base_view.pop("img")
+
+        if isinstance(img, torch.Tensor):
+            if img.ndim != 3 or img.shape[2] != 3:
+                raise ValueError(
+                    f"Expected image tensor with shape (H, W, 3); got {tuple(img.shape)}"
+                )
+            img_tensor = img.to(dtype=torch.float32)
+        else:
+            img_array = np.asarray(img)
+            if img_array.ndim != 3 or img_array.shape[2] != 3:
+                raise ValueError(
+                    f"Expected image array with shape (H, W, 3); got {img_array.shape}"
+                )
+            img_tensor = torch.from_numpy(img_array).to(dtype=torch.float32)
+
+        max_val = img_tensor.max()
+        if max_val > 1.5:
+            img_tensor = img_tensor / 255.0
+        elif max_val > 1.0:
+            img_tensor = img_tensor / max_val.clamp(min=1.0)
+
+        img_tensor = img_tensor.permute(2, 0, 1).contiguous().unsqueeze(0)
+        normalized_img = (img_tensor - mean) / std
+
+        processed_view: Dict[str, Any] = dict(base_view)
+        processed_view["img"] = normalized_img
+        processed_view["data_norm_type"] = [norm_type]
+        processed_view["true_shape"] = np.int32([(img_tensor.shape[-2], img_tensor.shape[-1])])
+
+        depth = processed_view.get("depth_z")
+        if depth is not None:
+            if torch.is_tensor(depth):
+                depth_array = depth.detach().cpu().numpy().astype(np.float32)
+            else:
+                depth_array = np.asarray(depth, dtype=np.float32)
+            if depth_array.ndim == 2:
+                depth_array = depth_array[..., None]
+            depth_tensor = torch.from_numpy(depth_array)
+            if depth_tensor.ndim == 3:
+                depth_tensor = depth_tensor.unsqueeze(0)
+            processed_view["depth_z"] = depth_tensor.to(dtype=torch.float32)
+
+        intrinsics = processed_view.get("intrinsics")
+        if intrinsics is not None:
+            if torch.is_tensor(intrinsics):
+                intrinsics_tensor = intrinsics.detach().cpu().to(dtype=torch.float32)
+            else:
+                intrinsics_tensor = torch.from_numpy(
+                    np.asarray(intrinsics, dtype=np.float32)
+                )
+            if intrinsics_tensor.ndim == 2:
+                intrinsics_tensor = intrinsics_tensor.unsqueeze(0)
+            processed_view["intrinsics"] = intrinsics_tensor
+
+        camera_poses = processed_view.get("camera_poses")
+        if camera_poses is not None:
+            if torch.is_tensor(camera_poses):
+                camera_pose_tensor = camera_poses.detach().cpu()
+            else:
+                camera_pose_tensor = torch.from_numpy(
+                    np.asarray(camera_poses, dtype=np.float32)
+                )
+            if camera_pose_tensor.ndim == 2:
+                camera_pose_tensor = camera_pose_tensor.unsqueeze(0)
+            processed_view["camera_poses"] = camera_pose_tensor.to(dtype=torch.float32)
+
+        is_metric_scale = processed_view.get("is_metric_scale")
+        if is_metric_scale is None:
+            processed_view["is_metric_scale"] = torch.ones(1, dtype=torch.bool)
+        elif not torch.is_tensor(is_metric_scale):
+            processed_view["is_metric_scale"] = torch.tensor(
+                [bool(is_metric_scale)], dtype=torch.bool
+            )
+        elif is_metric_scale.ndim == 0:
+            processed_view["is_metric_scale"] = is_metric_scale.view(1)
+
+        processed_views.append(processed_view)
+
+    return processed_views
 
 
 def _resolve_camera_indices(
@@ -219,12 +326,23 @@ def views_from_packed_npz(
         group_by_timestamp=False,
     )
 
-    processed_views = preprocess_inputs(
-        raw_views,
-        resize_mode=resize_mode,
-        size=size,
-        norm_type=norm_type,
-    )
+    if resize_mode == "keep":
+        processed_views = _convert_views_without_resize(
+            raw_views=raw_views, norm_type=norm_type
+        )
+    else:
+        processed_views = preprocess_inputs(
+            raw_views,
+            resize_mode=resize_mode,
+            size=size,
+            norm_type=norm_type,
+        )
+
+        # Ensure depth maps broadcast with ray directions inside MapAnything
+        for view in processed_views:
+            depth = view.get("depth_z")
+            if isinstance(depth, torch.Tensor) and depth.ndim == 3:
+                view["depth_z"] = depth.unsqueeze(-1)
 
     metadata.update(
         {
@@ -240,5 +358,6 @@ def views_from_packed_npz(
 __all__ = [
     "summarize_packed_npz",
     "raw_views_from_packed_npz",
+    "load_packed_npz",
     "views_from_packed_npz",
 ]
