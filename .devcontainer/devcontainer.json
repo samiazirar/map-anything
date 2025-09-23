@@ -14,9 +14,9 @@
 
   "mounts": [
     // Uncomment and edit the paths below to surface local datasets or secrets inside the container.
-    // "source=/home/nfs/datasets/internal,target=/data,type=bind,consistency=cached,readonly=false",
-    // "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly",
-    // "source=${localEnv:HOME}/.codex,target=/root/.codex,type=bind"
+    "source=/home/nfs/datasets/internal,target=/data,type=bind,consistency=cached,readonly=false",
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.codex,target=/root/.codex,type=bind"
   ],
 
   "containerEnv": {

@@ -5,6 +5,8 @@ set -euo pipefail
 cd /workspace
 
 export DEBIAN_FRONTEND=noninteractive
+# Prefer pre-built wheels to avoid unnecessary source builds during dependency resolution
+export PIP_PREFER_BINARY=1
 
 APT_PACKAGES=(
   libavcodec-dev
@@ -21,16 +23,14 @@ apt-get update
 apt-get install -y --no-install-recommends "${APT_PACKAGES[@]}"
 rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip tooling inside the container
-python -m pip install --upgrade pip setuptools wheel
+# Configure SSH for GitHub access (using SSH agent forwarding from host)
+# Disable strict host key checking for GitHub to avoid known_hosts issues
+export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-# Install PyTorch (CUDA 12.8 build) matching the base image toolchain
-PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu128"
-python -m pip install --upgrade --no-cache-dir \
-  torch torchvision torchaudio --index-url "${PYTORCH_INDEX_URL}"
 
 # Install MapAnything with all optional extras for a feature-complete developer environment
-python -m pip install --no-cache-dir -e .[all]
+python -m pip install .[all]
+
 
 # Set up linting hooks
 if command -v pre-commit >/dev/null 2>&1; then

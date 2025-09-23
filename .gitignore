@@ -1,0 +1,89 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+*.code-workspace
+
+# ------------------------------
+# Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.env
+.venv
+venv/
+env/
+pip-wheel-metadata/
+.python-version
+*.manifest
+*.spec
+site-packages/
+
+# ------------------------------
+# Build / Dist
+# ------------------------------
+build/
+dist/
+wheelhouse/
+*.egg-info/
+*.whl
+*.lock
+*.log
+coverage/
+*.cover
+*.py,cover
+htmlcov/
+.mypy_cache/
+.dmypy.json
+.pytest_cache/
+.tox/
+.nox/
+
+# ------------------------------
+# Notebooks / Data
+# ------------------------------
+.ipynb_checkpoints/
+*.ipynb~
+*.csv
+*.tsv
+*.dat
+*.db
+*.sqlite
+*.h5
+
+# ------------------------------
+# C/C++ / Binary
+# ------------------------------
+*.o
+*.obj
+*.dll
+*.exe
+*.out
+*.a
+*.lib
+*.so
+*.dylib
+
+# ------------------------------
+# Misc
+# ------------------------------
+*.bak
+*.tmp
+*.temp
+*.log
+*.cache/
+
+build
+build/
