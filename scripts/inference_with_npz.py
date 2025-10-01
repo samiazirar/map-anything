@@ -6,7 +6,11 @@ into MapAnything-ready view dictionaries.
 Example usage:
     python scripts/inference_with_npz.py --npz /data/rh20t_api/data/test_data_full_rgb_upscaled_depth/packed_npz/task_0065_user_0010_scene_0009_cfg_0004.npz --raw
 
-The emitted ``views`` list can be passed directly to ``MapAnything.infer``.
+    python scripts/inference_with_npz.py --npz /data/rh20t_api/data/test_data_full_rgb_upscaled_depth/packed_npz/task_0065_user_0010_scene_0009_cfg_0004.npz --raw
+
+    python scripts/inference_with_npz.py --npz /data/rh20t_api/test_npz/task_0065_user_0010_scene_0009_cfg_0004_processed.npz --raw  --depth-vis-dir data/depth_vis --save-pred-npz data/npz_files/task_0065_user_0010_scene_0009_cfg_0004_processed.npz
+
+    The emitted ``views`` list can be passed directly to ``MapAnything.infer``.
 """
 
 from __future__ import annotations
@@ -256,6 +260,10 @@ def _save_predictions_npz(
             depth_tensor = depth_tensor.cpu()
 
         if depth_tensor.shape[-2:] != target_shape:
+            Warning(
+                f"Resizing predicted depth from {depth_tensor.shape[-2:]} to {target_shape} "
+                f"to match original size {original_size}"
+            )
             depth_tensor = F.interpolate(
                 depth_tensor,
                 size=target_shape,
@@ -357,7 +365,7 @@ def main() -> None:
 
     # Preprocess views for MapAnything when starting from raw NPZ content
     if args.raw:
-        processed_views = preprocess_inputs(test_views)
+        processed_views = preprocess_inputs(test_views,resize_mode="fixed_size",size=(630, 364),patch_size=14)     # 
     else:
         processed_views = test_views
 
@@ -374,10 +382,9 @@ def main() -> None:
         raise Warning("Using CPU for inference. This is not recommended!")
 
     model = MapAnything.from_pretrained("facebook/map-anything").to(device)
-
     # Init model - This requries internet access or the huggingface hub cache to be pre-downloaded
     # For Apache 2.0 license model, use "facebook/map-anything-apache"
-    
+    breakpoint()
     predictions = model.infer(
         processed_views,                  # Any combination of input views
         memory_efficient_inference=False, # Trades off speed for more views (up to 2000 views on 140 GB)
@@ -395,7 +402,7 @@ def main() -> None:
         ignore_depth_scale_inputs=False,
         ignore_pose_scale_inputs=False,
     )
-
+    breakpoint()
     if len(predictions) != len(view_infos):
         print(
             f"[warning] Expected {len(view_infos)} predictions but received {len(predictions)}; results will be truncated."

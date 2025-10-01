@@ -252,7 +252,7 @@ def raw_views_from_packed_npz(
                     depth = depths[cam_idx, frame_idx, 0]
                     view["depth_z"] = depth
                     if include_metric_scale:
-                        view["is_metric_scale"] = torch.tensor(True)
+                        view["is_metric_scale"] = torch.tensor([True]) 
 
                 if include_pose:
                     pose = _pose_3x4_to_4x4(extrs[cam_idx, frame_idx])
